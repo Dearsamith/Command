@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#101510" />
+  <meta name="description" content="THE ART OF COMMAND — 2D real-time command simulator with multi-echelon command structure" />
+  <title>THE ART OF COMMAND — Build 1.0 Offline</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-block">
+        <div class="crest">AC</div>
+        <div>
+          <div class="brand-title">THE ART OF COMMAND</div>
+          <div class="brand-sub">REAL-TIME COMMAND SIMULATOR • BUILD 1.0 LOCAL</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="pill status"><span class="dot live"></span><span id="simStatusText">SIMULATION RUNNING</span></div>
+        <div class="pill theater">THEATER: <strong id="scenarioTheater">NORTH BORDER</strong></div>
+        <div class="clock-box">
+          <span id="clockDay">DAY 01</span>
+          <strong id="clockTime">06:00</strong>
+        </div>
+        <select id="speedSelect" class="control-select" aria-label="ความเร็วเวลา">
+          <option value="1">1×</option>
+          <option value="2">2×</option>
+          <option value="4">4×</option>
+          <option value="8">8×</option>
+        </select>
+        <button id="pauseButton" class="btn btn-secondary">หยุดเวลา</button>
+        <button id="saveButton" class="btn btn-secondary">บันทึก</button>
+      </div>
+    </header>
+
+    <section class="cloud-connect offline-banner" id="offlineModeBanner" aria-label="โหมดเล่นในเบราว์เซอร์">
+      <div class="cloud-heading"><span class="cloud-led online"></span><strong id="offlineStatus">LOCAL SAVE — โลกเดินเฉพาะตอนเล่น</strong><span id="offlineMeta" class="muted">ไม่ใช้ Node.js • ปิด/สลับออกจากเว็บแล้วหยุดเวลา • บันทึกอัตโนมัติ</span></div>
+      <div class="cloud-fields"><button id="offlineImportButton" class="btn btn-ghost" title="นำเข้าไฟล์เซฟ JSON จากเกมรุ่นก่อน">นำเข้าไฟล์เซฟ</button><input id="offlineImportFile" type="file" accept=".json,application/json" hidden/><button id="offlineBackupButton" class="btn btn-secondary">สำรองเกมเป็น JSON</button></div>
+    </section>
+    <div class="body-grid">
+      <aside class="sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-label">COMMAND NAVIGATION</div>
+          <nav class="nav-list" id="mainNav">
+            <button class="nav-item active" data-view="overview">ภาพรวมยุทธการ</button>
+            <button class="nav-item" data-view="operations">ปฏิบัติการและแผนที่</button>
+            <button class="nav-item" data-view="command">สายการบังคับบัญชา</button>
+            <button class="nav-item" data-view="c2">ศูนย์บัญชาการและฝ่ายเสนาธิการ</button>
+            <button class="nav-item" data-view="missions">แผนภารกิจ</button>
+            <button class="nav-item" data-view="commanders">ผู้บังคับบัญชา</button>
+            <button class="nav-item" data-view="personnel">กำลังพลและอุปกรณ์</button>
+            <button class="nav-item" data-view="sustain">คลังเสบียงและการแพทย์</button>
+            <button class="nav-item" data-view="scenarios">Scenario ประวัติศาสตร์</button>
+            <button class="nav-item" data-view="era">ยุค อุปกรณ์ และ AI</button>
+            <button class="nav-item" data-view="staff">ฝ่ายอำนวยการและส่งกำลัง</button>
+            <button class="nav-item" data-view="nation">เศรษฐกิจหลายประเทศ</button>
+            <button class="nav-item" data-view="history">โลกย้อนหลังและ Snapshot</button>
+            <button class="nav-item" data-view="reports">รายงานและบันทึก</button>
+          </nav>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-label">CAMPAIGN ACTIONS</div>
+          <div class="stack-buttons">
+            <button id="newScenarioButton" class="btn btn-primary full">เลือก Scenario ใหม่</button>
+            <button id="loadButton" class="btn btn-ghost full">โหลดเกม</button>
+            <button id="exportButton" class="btn btn-ghost full">ส่งออก JSON</button>
+          </div>
+        </div>
+
+        <div class="sidebar-section sidebar-summary">
+          <div class="sidebar-label">CURRENT POSTURE</div>
+          <div id="sidebarSummary"></div>
+        </div>
+      </aside>
+
+      <main class="main-area">
+        <div class="page-header">
+          <div>
+            <div class="eyebrow" id="pageEyebrow">SECTOR OVERVIEW</div>
+            <h1 id="pageTitle">ภาพรวมยุทธการ</h1>
+            <p id="pageDescription">จัดระบบข้อมูลเป็นหมวดหมู่ให้ดูง่ายขึ้น และคุมทุกระดับผ่านศูนย์บัญชาการเดียว</p>
+          </div>
+          <div class="page-chip-row">
+            <div class="page-chip">2D COMMAND MAP</div>
+            <div class="page-chip">REAL-TIME</div>
+            <div class="page-chip">CHAIN OF COMMAND</div>
+            <div class="page-chip" id="scenarioTopTag">SANDBOX</div>
+          </div>
+        </div>
+
+        <div id="kpiBar" class="kpi-bar"></div>
+
+        <section class="view active" id="view-overview">
+          <div class="grid-2">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>สถานการณ์โดยรวม</h2>
+                  <p>ภาพรวมด้านกำลังพล ความพร้อม และแนวโน้มการปฏิบัติการ</p>
+                </div>
+                <span class="tag">OVERVIEW</span>
+              </div>
+              <div id="overviewBoard" class="overview-board"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>ภารกิจหลัก</h2>
+                  <p>หมวดงานที่กำลังดำเนินการของแต่ละกองพล</p>
+                </div>
+                <span class="tag">MISSIONS</span>
+              </div>
+              <div id="missionBoard" class="mission-board"></div>
+            </section>
+          </div>
+          <div class="grid-2 bottom-gap">
+            <section class="panel">
+              <div class="panel-head"><div><h2>เหตุการณ์ล่าสุด</h2><p>ข่าวสารจากแนวหน้าและฝ่ายอำนวยการ</p></div><span class="tag">LIVE FEED</span></div>
+              <div id="liveEvents" class="event-list short"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><div><h2>การตัดสินใจเร่งด่วน</h2><p>รายการประเด็นที่ควรพิจารณาในลำดับถัดไป</p></div><span class="tag">PRIORITY</span></div>
+              <div id="priorityList" class="priority-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="view-operations">
+          <div class="ops-layout">
+            <section class="panel map-panel">
+              <div class="panel-head"><div><h2>แผนที่ยุทธการ 2D</h2><p>ภูมิประเทศ จุดยุทธศาสตร์ และตำแหน่งหน่วยระดับกองร้อย</p></div><span class="tag">MAP</span></div>
+              <div class="map-toolbar">
+                <div class="toggle-group" id="layerToggles">
+                  <button class="toggle active" data-layer="terrain">ภูมิประเทศ</button>
+                  <button class="toggle" data-layer="supply">เสบียง</button>
+                  <button class="toggle" data-layer="intel">ข่าวกรอง</button>
+                  <button class="toggle" data-layer="mobility">การผ่านพื้นที่</button>
+                </div>
+                <div class="toggle-group">
+                  <button id="zoomOut" class="toggle">−</button>
+                  <button id="zoomReset" class="toggle">⌖</button>
+                  <button id="zoomIn" class="toggle">+</button>
+                </div>
+              </div>
+              <div class="canvas-wrap">
+                <canvas id="battlefield" width="980" height="560"></canvas>
+                <div class="map-overlay" id="mapOverlay">คลิกหน่วยสีน้ำเงินเพื่อเลือก • ใช้คำสั่งจากแผงด้านขวา</div>
+              </div>
+              <div class="map-footer">
+                <span id="weatherText">สภาพอากาศ: ท้องฟ้าโปร่ง</span>
+                <span id="mapInfoText">GRID SCALE 1:250,000</span>
+              </div>
+            </section>
+            <aside class="panel command-panel">
+              <div class="panel-head"><div><h2>หมวดคำสั่ง</h2><p>สั่งตรงหรือผ่านสายการบังคับบัญชา</p></div><span class="tag">ORDERS</span></div>
+              <div id="commandPanel"></div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view" id="view-command">
+          <div class="grid-2">
+            <section class="panel">
+              <div class="panel-head"><div><h2>แผนผังการบังคับบัญชา</h2><p>กองทัพ → กองพล → กองพัน → กองร้อย</p></div><span class="tag">HIERARCHY</span></div>
+              <div id="commandTree" class="tree-area"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><div><h2>รายละเอียดหน่วย</h2><p>เลือกหน่วยเพื่อดูข้อมูลสถานะ ผู้บังคับบัญชา และคำสั่งล่าสุด</p></div><span class="tag">UNIT PROFILE</span></div>
+              <div id="unitProfile"></div>
+            </section>
+          </div>
+        </section>
+
+
+        <section class="view" id="view-c2">
+          <div class="grid-2 c2-top-grid">
+            <section class="panel">
+              <div class="panel-head"><div><h2>ผู้บังคับบัญชาและรูปแบบการตัดสินใจ</h2><p>เลือก ผบช. เพื่อดูทักษะ ความเครียด และกำหนดหลักการมอบอำนาจ</p></div><span class="tag">COMMAND PERSONNEL</span></div>
+              <div id="c2CommanderSelect"></div>
+              <div id="c2CommanderDetail"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><div><h2>สถานะการส่งคำสั่ง</h2><p>แต่ละคำสั่งผ่านฝ่ายเสนาธิการ หน่วยกลาง และการยืนยันรับ</p></div><span class="tag">COMMAND RELAY</span></div>
+              <div id="c2MessageBoard"></div>
+            </section>
+          </div>
+          <div class="grid-2 c2-bottom-grid">
+            <section class="panel">
+              <div class="panel-head"><div><h2>กระดานงานฝ่ายเสนาธิการ</h2><p>แต่ละสายงานประมวลคำร้องตามกำลังการทำงานที่มีอยู่</p></div><span class="tag">HQ STAFF QUEUE</span></div>
+              <div id="c2DeskGrid"></div>
+              <form id="c2TaskForm" class="c2-task-form">
+                <label>มอบหมายงาน<select id="c2TaskType" class="text-input"><option value="personnel">S1 — ตรวจสอบยอดกำลังพล</option><option value="intel">S2 — รวบรวมข่าวสาร</option><option value="ops">S3 — ทบทวนภารกิจ</option><option value="sustain">S4 — ตรวจการสนับสนุน</option><option value="comms">S6 — ตรวจการสื่อสาร</option></select></label>
+                <label>หน่วยที่เกี่ยวข้อง<select id="c2TaskUnit" class="text-input"></select></label>
+                <button class="btn btn-primary full" type="submit">ส่งงานให้ฝ่ายเสนาธิการ</button>
+              </form>
+              <div id="c2CaseList"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><div><h2>สมุดบันทึกการตัดสินใจ</h2><p>ลำดับเหตุการณ์ส่งคำสั่งและข้อสังเกตจากหน่วย</p></div><span class="tag">DECISION LOG</span></div>
+              <div id="c2DecisionLog"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="view-personnel">
+          <div class="grid-2 personnel-layout">
+            <section class="panel">
+              <div class="panel-head"><div><h2>กำลังพลภายในหน่วย</h2><p>อัตราอนุมัติ กำลังพร้อมปฏิบัติ บาดเจ็บ เจ็บป่วย และการพักฟื้น</p></div><span class="tag">S1 / PERSONNEL</span></div>
+              <div id="personnelRoster"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><div><h2>สภาพอุปกรณ์และภูมิประเทศ</h2><p>ความพร้อมของยานพาหนะ การซ่อมบำรุง และข้อจำกัดการเดินทาง</p></div><span class="tag">S4 / MOBILITY</span></div>
+              <div id="unitSystemsBoard"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="view-missions">
+          <div class="grid-2 mission-layout">
+            <section class="panel">
+              <div class="panel-head"><div><h2>สร้างแผนภารกิจ</h2><p>กำหนดวัตถุประสงค์ เจ้าของภารกิจ ระดับความสำคัญ และจุดหมาย</p></div><span class="tag">MISSION PLANNER</span></div>
+              <form id="missionForm" class="mission-form">
+                <label>ชื่อภารกิจ<input id="newMissionTitle" class="text-input" maxlength="65" required placeholder="เช่น ส่งหน่วยผลัดเปลี่ยนกำลัง" /></label>
+                <label>หน่วยรับผิดชอบ<select id="newMissionUnit" class="text-input" required></select></label>
+                <div class="subgrid"><label>ประเภทงาน<select id="newMissionType" class="text-input"><option value="relief">ผลัดเปลี่ยนกำลัง</option><option value="movement">เคลื่อนย้ายกำลัง</option><option value="support">สนับสนุนและรักษาความพร้อม</option><option value="security">รักษาพื้นที่</option></select></label><label>ลำดับความสำคัญ<select id="newMissionPriority" class="text-input"><option value="กลาง">กลาง</option><option value="สูง">สูง</option><option value="ต่ำ">ต่ำ</option></select></label></div>
+                <label>รายละเอียด / เงื่อนไข<input id="newMissionObjective" class="text-input" maxlength="110" placeholder="อธิบายผลลัพธ์ที่ต้องการ" /></label>
+                <div class="subgrid"><label>จุดหมาย X<input id="newMissionX" class="text-input" type="number" min="0" max="980" value="470" /></label><label>จุดหมาย Y<input id="newMissionY" class="text-input" type="number" min="0" max="560" value="250" /></label></div>
+                <button type="button" id="missionMapPick" class="btn btn-ghost full">เลือกจุดหมายจากแผนที่</button>
+                <div class="helper-note">คำสั่งจะผ่านสายการบังคับบัญชาก่อนเริ่มแต่ละระยะ ความพร้อมและเสบียงมีผลต่อการดำเนินงาน</div>
+                <button class="btn btn-primary full" type="submit">+ อนุมัติแผนและเริ่มภารกิจ</button>
+              </form>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><div><h2>ภารกิจที่กำลังดำเนินการ</h2><p>สถานะเรียลไทม์ของงานแต่ละระดับ</p></div><span class="tag" id="missionCount">MISSION QUEUE</span></div>
+              <div id="missionManager" class="mission-manager"></div>
+            </section>
+          </div>
+        </section>
+
+
+        <section class="view" id="view-commanders">
+          <div class="grid-2 commander-layout">
+            <section class="panel">
+              <div class="panel-head"><div><h2>บัญชีรายชื่อผู้บังคับบัญชา</h2><p>เลือก ผบช. เพื่อดูภาพประจำตัว ปรับแต่งหน้าตา และเปลี่ยนชื่อ</p></div><span class="tag">COMMANDERS</span></div>
+              <div id="commanderRoster" class="commander-roster"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><div><h2>แต่งโปรไฟล์ ผบช.</h2><p>ปรับภาพใบหน้า เครื่องแบบ อุปกรณ์ และชื่อของผู้บังคับบัญชาได้เอง</p></div><span class="tag">PORTRAIT STUDIO</span></div>
+              <div id="commanderStudio" class="commander-studio"></div>
+            </section>
+          </div>
+        </section>
+
+
+        <section class="view" id="view-sustain">
+          <div class="panel sustain-intro">
+            <div class="panel-head"><div><h2>SUPPLY & CASUALTY MANAGEMENT</h2><p>ระบบแยกอาหาร น้ำ เชื้อเพลิง อะไหล่ และเวชภัณฑ์ ขนส่งตามเส้นทางในเกม</p></div><span class="tag">S4 / MED</span></div>
+            <div id="sustainSummary" class="sustain-kpis"></div>
+          </div>
+          <div class="grid-2">
+            <section class="panel">
+              <div class="panel-head"><div><h2>ส่งทรัพยากรจากคลัง</h2><p>คลังถูกหักทันทีเมื่อจัดส่ง และหน่วยได้รับของเมื่อขบวนถึงเท่านั้น</p></div><span class="tag">REQUISITION</span></div>
+              <form id="sustainDispatchForm" class="sustain-form">
+                <label>หน่วยปลายทาง<select id="sustainUnit" class="text-input"></select></label>
+                <label>คลังต้นทาง<select id="sustainDepot" class="text-input"></select></label>
+                <label>ประเภทสิ่งของ<select id="sustainResource" class="text-input"></select></label>
+                <label>จำนวน<input id="sustainAmount" class="text-input" type="number" value="120" min="1" max="2500" required></label>
+                <button class="btn btn-primary full" type="submit">ยืนยันจัดส่ง</button>
+              </form>
+              <div id="sustainDepots" class="sustain-depots"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><div><h2>สถานะหน่วยและการรักษา</h2><p>สต็อกในหน่วย ผู้บาดเจ็บ การซ่อม และการจัดระดับความเร่งด่วน</p></div><span class="tag">UNIT SUSTAINMENT</span></div>
+              <div id="sustainUnitBoard"></div>
+            </section>
+          </div>
+          <section class="panel">
+            <div class="panel-head"><div><h2>ขบวนขนส่งและประวัติ</h2><p>เดินทางตามแผนที่และใช้เวลาในโลกจำลอง</p></div><span class="tag">TRANSIT LOG</span></div>
+            <div id="sustainTransit" class="sustain-transit"></div>
+          </section>
+        </section>
+        <section class="view" id="view-scenarios">
+          <section class="panel">
+            <div class="panel-head"><div><h2>คลังสถานการณ์ประวัติศาสตร์</h2><p>เลือกจุดเริ่มต้นแบบ WWII หรือสงครามยุคปัจจุบัน ใช้ประวัติศาสตร์เป็นบริบทและเล่นแบบ Alternate History ได้</p></div><span class="tag">SCENARIO LIBRARY</span></div>
+            <div class="helper-note">แผนที่และหน่วยเป็นตัวแทนสมมติ ไม่ใช่แผนที่ภูมิศาสตร์หรืออัตรากำลังจริง สถานการณ์ Modern อ้างอิงเหตุการณ์ปี 2022 แบบคงที่ ไม่ใช่ข้อมูลสถานะสงครามสด</div>
+            <div class="scenario-filters"><button class="scenario-filter active" data-era="all">ทั้งหมด</button><button class="scenario-filter" data-era="ww2">WWII</button><button class="scenario-filter" data-era="modern">Modern</button><button class="scenario-filter" data-era="sandbox">Sandbox</button></div>
+            <div id="scenarioCards" class="scenario-grid"></div>
+          </section>
+        </section>
+
+
+        <section class="view" id="view-era">
+          <div class="era-note helper-note">ระบบตามยุคเป็นกฎจำลองเกมแบบย่อ แผนที่เป็นภาพแผนผังไม่อ้างอิงพิกัดจริง และไม่เปิดเผยตำแหน่งหน่วยฝ่ายตรงข้ามจากข้อมูลภายในของ AI</div>
+          <div class="grid-2">
+            <section class="panel"><div class="panel-head"><div><h2>ระบบตามยุค</h2><p>ภาพรวมอุปกรณ์ การส่งกำลังและการสื่อสารใน Scenario ปัจจุบัน</p></div><span class="tag">ERA PROFILE</span></div><div id="eraOverview"></div></section>
+            <section class="panel"><div class="panel-head"><div><h2>Opponent Campaign AI</h2><p>AI ตัดสินใจเป็นระยะจากความพร้อม ทรัพยากรและความเหนื่อยล้าของตน</p></div><span class="tag">AI DIRECTOR</span></div><div id="opponentOverview"></div></section>
+          </div>
+          <section class="panel"><div class="panel-head"><div><h2>บัญชีอุปกรณ์ประจำกองร้อย</h2><p>การจัดประเภทอุปกรณ์และสถานะการซ่อมเชื่อมกับหน่วยบนแผนที่</p></div><span class="tag">EQUIPMENT REGISTER</span></div><div class="era-unit-grid" id="eraUnits"></div></section>
+        </section>
+
+        <section class="view" id="view-staff">
+          <div class="staff-grid" id="staffGrid"></div>
+          <section class="panel">
+            <div class="panel-head"><div><h2>ศูนย์คำร้องฝ่ายอำนวยการ</h2><p>ตรวจคำขอจากหน่วยรอง อนุมัติทรัพยากร และติดตามงานสนับสนุน</p></div><span class="tag">STAFF REQUESTS</span></div>
+            <div id="staffRequests" class="request-list"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><div><h2>คลังและการขนส่ง</h2><p>แยกสต็อกของคลังต้นทางกับสิ่งของที่อยู่ระหว่างขนส่ง</p></div><span class="tag">DEPOTS / TRANSIT</span></div>
+            <div id="depotBoard" class="depot-board"></div>
+          </section>
+        </section>
+
+        <section class="view" id="view-nation">
+          <div class="grid-2">
+            <section class="panel">
+              <div class="panel-head"><div><h2>เศรษฐกิจสงคราม</h2><p>งบประมาณ อุตสาหกรรม และการผลิตยุทโธปกรณ์</p></div><span class="tag">NATION</span></div>
+              <div id="nationBoard"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><div><h2>คำสั่งเชิงนโยบาย</h2><p>ปรับแนวทางเพื่อเปลี่ยนสมรรถนะของกองทัพ</p></div><span class="tag">POLICY</span></div>
+              <div id="policyActions" class="stack-buttons"></div>
+            </section>
+          </div>
+          <section class="panel" style="margin-top:14px">
+            <div class="panel-head"><div><h2>ประเทศ เศรษฐกิจ และการทูต</h2><p>4 ฝ่ายมีอุตสาหกรรม การบริโภค การค้า และเงินคลังแยกกัน (ตัวเลขสมมติทั้งหมด)</p></div><span class="tag">LIVING NATIONS</span></div>
+            <div id="nationWorldPanel"></div>
+          </section>
+        </section>
+
+        <section class="view" id="view-history">
+          <section class="panel">
+            <div class="panel-head"><div><h2>ประวัติโลกจำลอง</h2><p>บันทึกเหตุการณ์เฉพาะเวลาที่เล่น เก็บย้อนหลังไว้ในเบราว์เซอร์</p></div><span class="tag">LOCAL HISTORY</span></div>
+            <div class="history-toolbar"><select id="historyCategory" class="control-select" aria-label="หมวดเหตุการณ์"><option value="">เหตุการณ์ทั้งหมด</option><option value="C2">C2</option><option value="ECON">ECON</option><option value="S4">S4</option><option value="PLAYER">PLAYER</option><option value="SCENARIO">SCENARIO</option></select><button id="historyReload" class="btn btn-secondary">รีเฟรชประวัติ</button><button id="historyMore" class="btn btn-ghost">ดูเก่ากว่านี้</button><button id="historySaveSnapshot" class="btn btn-primary">เก็บ Snapshot ตอนนี้</button></div>
+            <div id="historyTimeline" class="history-timeline"></div>
+          </section>
+          <div class="grid-2">
+            <section class="panel"><div class="panel-head"><div><h2>Snapshot ย้อนหลัง</h2><p>เปิดสถานะเดิมโดยไม่เปลี่ยนโลกปัจจุบัน</p></div><span class="tag">REPLAY</span></div><div id="historySnapshots"></div><div id="historySnapshotDetail" class="snapshot-preview"></div></section>
+            <section class="panel"><div class="panel-head"><div><h2>แนวโน้มเศรษฐกิจ</h2><p>ค่าเงินคลังตามเวลาจำลอง แยกประเทศ</p></div><span class="tag">MACRO HISTORY</span></div><div id="historyEconomy"></div></section>
+          </div>
+        </section>
+
+        <section class="view" id="view-reports">
+          <div class="grid-2">
+            <section class="panel">
+              <div class="panel-head"><div><h2>After Action Review</h2><p>สรุปสถานะเชิงระบบของโลกจำลอง</p></div><span class="tag">AAR</span></div>
+              <div id="aarPanel"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><div><h2>บันทึกเหตุการณ์ทั้งหมด</h2><p>เรียงตามเวลาและอัปเดตตลอด</p></div><span class="tag">LOG</span></div>
+              <div id="allEvents" class="event-list long"></div>
+            </section>
+          </div>
+        </section>
+      </main>
+
+      <aside class="rightbar">
+        <div class="panel compact-panel">
+          <div class="panel-head compact"><div><h2>INTEL FEED</h2></div><span class="tag">S2</span></div>
+          <div id="intelFeed"></div>
+        </div>
+        <div class="panel compact-panel">
+          <div class="panel-head compact"><div><h2>SELECTED UNIT</h2></div><span class="tag">C2</span></div>
+          <div id="selectedSummary"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="scenarioModal" hidden>
+    <div class="modal-card">
+      <div class="modal-headline">เริ่มสถานการณ์ใหม่</div>
+      <p>สถานการณ์ใหม่จะรีเซ็ตเกมปัจจุบัน แต่เซฟที่บันทึกไว้ยังอยู่</p><div id="scenarioModalChoice" class="scenario-modal-options"></div>
+      <div class="stack-buttons">
+        <button class="btn btn-primary full" id="confirmNewScenario">ยืนยันเริ่มใหม่</button>
+        <button class="btn btn-ghost full" id="cancelNewScenario">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="./theaters.js"></script>
+  <script src="./world.js"></script>
+  <script src="./c2.js"></script>
+  <script src="./sustain.js"></script>
+  <script src="./scenarios.js"></script>
+  <script src="./era.js"></script>
+  <script src="./opponent.js"></script>
+  <script src="./nations.js"></script>
+  <script src="./app.js"></script>
+  <script src="./offline.js"></script>
+</body>
+</html>
